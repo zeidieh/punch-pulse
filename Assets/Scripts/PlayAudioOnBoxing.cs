@@ -7,9 +7,14 @@ using TMPro; // Required for TextMeshPro
 
 public class PlayAudioOnBoxing : MonoBehaviour
 {
+    // punching
     public AudioClip clip;
     private AudioSource source;
     public string targetTag;
+
+    // cheering
+    public AudioClip cheeringClip;
+    public AudioSource cheeringSource;
 
     // Score and haptic feedback additions
     public XRBaseController leftController;  // Assign via Inspector
@@ -27,7 +32,17 @@ public class PlayAudioOnBoxing : MonoBehaviour
     public float maxPitch = 1.2f;
 
     private bool hasPlayed = false; // New flag to track if the sound has been played
+    private bool isCheering = false; // Flag to check if cheering is playing
+    public float noCollisionTimeout = 5f; // Time in seconds before stopping the cheering sound]
+    public float cheerFadeOutDuration = 1.5f;
 
+    private float timeSinceLastCollision = 0f; // Timer to track the last collision time
+
+
+    public Camera playerCamera;
+    public Transform leftControllerTransform;
+    public Transform rightControllerTransform;
+    public float minForwardDistance = 0.2f; // Minimum distance the controller needs to be in front of the player
 
     // Start is called before the first frame update
     void Start()
@@ -35,6 +50,44 @@ public class PlayAudioOnBoxing : MonoBehaviour
         source = GetComponent<AudioSource>();
         UpdateScoreText(); // Initialize score display
 
+        if (playerCamera == null)
+            playerCamera = Camera.main;
+
+        if (leftControllerTransform == null || rightControllerTransform == null)
+            Debug.LogWarning("Controller transforms not assigned in PlayAudioOnBoxing script!");
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+        // Increment timer each frame
+        timeSinceLastCollision += Time.deltaTime;
+
+        // Stop the cheering sound if no collision happens for the timeout duration
+        if (timeSinceLastCollision >= noCollisionTimeout && isCheering)
+        {
+            StopCheerSound();
+        }
+    }
+
+    private bool IsControllerInFront(Transform controllerTransform)
+    {
+        if (controllerTransform == null || playerCamera == null)
+            return false;
+
+        Vector3 playerForward = playerCamera.transform.forward;
+        playerForward.y = 0; // Ignore vertical difference
+        playerForward.Normalize();
+
+        Vector3 controllerDirection = controllerTransform.position - playerCamera.transform.position;
+        controllerDirection.y = 0; // Ignore vertical difference
+        controllerDirection.Normalize();
+
+        float dotProduct = Vector3.Dot(playerForward, controllerDirection);
+        float forwardDistance = Vector3.Project(controllerTransform.position - playerCamera.transform.position, playerForward).magnitude;
+        // Debug.Log("Dot Product: " + dotProduct + " Forward Distance: " + forwardDistance);
+
+        return dotProduct > 0 && forwardDistance >= minForwardDistance;
     }
 
     // OnTriggerEnter
@@ -42,17 +95,24 @@ public class PlayAudioOnBoxing : MonoBehaviour
     {
         if (!hasPlayed && other.CompareTag(targetTag))
         {
-            hasPlayed = true; // Set the flag to true to prevent re-triggering
-            // Play the audio clip
-            PlaySound(other);
+            // Check if either controller is in front of the player
+            bool isLeftControllerInFront = IsControllerInFront(leftControllerTransform);
+            bool isRightControllerInFront = IsControllerInFront(rightControllerTransform);
+            Debug.Log(isLeftControllerInFront + " " + isRightControllerInFront + " " + isCheering);
 
-            // Increment the score
-            score++;
-            UpdateScoreText();
+            if (isLeftControllerInFront || isRightControllerInFront)
+             {
+               hasPlayed = true;
+                PlaySound(other);
+                score++;
+                UpdateScoreText();
+                timeSinceLastCollision = 0f;
 
-            // Trigger haptic feedback on both controllers
-            SendHapticImpulse(leftController, 0.5f, 0.2f);
-            SendHapticImpulse(rightController, 0.5f, 0.2f);
+                if (!isCheering)
+                {
+                    PlayCheerSound();
+                }
+            }
         }
     }
 
@@ -63,30 +123,46 @@ public class PlayAudioOnBoxing : MonoBehaviour
         if (estimator && useVelocity)
         {
             float v = estimator.GetVelocityEstimate().magnitude;
-            Debug.Log(v);
-            float volume = Mathf.InverseLerp(minVelocity, maxVelocity, v);
+            ApplyHapticFeedbackBasedOnVelocity(v);
+            Debug.Log("Velocity :" + v);
+            float volume;
             if (v < minVelocity)
             {
                 source.pitch = minPitch;
-            }
-            else if (v > maxVelocity)
-            {
-                source.pitch = maxPitch;
+                volume = 0.8f;
             }
             else
             {
-                source.pitch = Random.Range(minPitch, maxPitch);
+                source.pitch = maxPitch;
+                volume = 1.2f;
             }
             source.PlayOneShot(clip, volume);
         }
         else
         {
-            if (randomizePitch)
-            {
-                source.pitch = Random.Range(minPitch, maxPitch);
-            }
-
             source.PlayOneShot(clip);
+        }
+    }
+
+    void PlayCheerSound()
+    {
+
+        if (cheeringSource == null || cheeringClip == null)
+        {
+            Debug.LogWarning("Cheering source or cheering clip is not assigned!");
+            return;
+        }
+
+        isCheering = true;
+        Debug.LogWarning("Cheering starting now!");
+        cheeringSource.PlayOneShot(cheeringClip, 0.7f);
+    }
+
+    void StopCheerSound()
+    {
+        if (isCheering)
+        {
+            StartCoroutine(FadeOutCheering());
         }
     }
 
@@ -98,12 +174,26 @@ public class PlayAudioOnBoxing : MonoBehaviour
             hasPlayed = false; // Reset the flag when the player exits the collision box
         }
     }
+
     void SendHapticImpulse(XRBaseController controller, float amplitude, float duration)
     {
         if (controller != null)
         {
             controller.SendHapticImpulse(amplitude, duration);
         }
+    }
+
+    void ApplyHapticFeedbackBasedOnVelocity(float velocity)
+    {
+        // Normalize the velocity to a range between 0 and 1
+        float intensity = velocity / maxVelocity;
+
+        // Clamps the given value between the given minimum float and maximum float values.
+        intensity = Mathf.Clamp(intensity, 0.25f, 0.75f);
+
+        // Apply the intensity to the haptic feedback
+        SendHapticImpulse(leftController, intensity, 0.2f);
+        SendHapticImpulse(rightController, intensity, 0.2f);
     }
 
     void UpdateScoreText()
@@ -114,4 +204,23 @@ public class PlayAudioOnBoxing : MonoBehaviour
         }
     }
 
+    private IEnumerator FadeOutCheering()
+    {
+        float startVolume = cheeringSource.volume;
+        float elapsedTime = 0f;
+
+        while (elapsedTime < cheerFadeOutDuration)
+        {
+            elapsedTime += Time.deltaTime;
+            float newVolume = Mathf.Lerp(startVolume, 0f, elapsedTime / cheerFadeOutDuration);
+            cheeringSource.volume = newVolume;
+            yield return null;
+        }
+
+        cheeringSource.Stop();
+        cheeringSource.volume = startVolume; // Reset volume for next use
+        isCheering = false;
+    }
+
 }
+
