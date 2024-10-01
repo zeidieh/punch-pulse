@@ -1516,6 +1516,7 @@ GameObject:
   - component: {fileID: 282555734}
   - component: {fileID: 282555733}
   - component: {fileID: 282555735}
+  - component: {fileID: 282555736}
   m_Layer: 0
   m_Name: Input Action Manager
   m_TagString: Untagged
@@ -1546,7 +1547,7 @@ Transform:
   m_GameObject: {fileID: 282555732}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -1.95, y: 1.2743553, z: -1.0740845}
+  m_LocalPosition: {x: -0.088, y: 3.359, z: -0.245}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1572,6 +1573,44 @@ MonoBehaviour:
   distanceInFront: 1
   moveSpeed: 2
   rotationSpeed: 2
+--- !u!114 &282555736
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 282555732}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 312ca56a0d000f242a9289579b3ff5f9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  enemy: {fileID: 1953239092}
+  stepDistance: 1
+  leftTriggerAction: {fileID: -5982496924579745919, guid: c348712bda248c246b8c49b3db54643f,
+    type: 3}
+  playerCamera: {fileID: 2036805231}
+  audioSource: {fileID: 2042691871}
+  clockDirectionClips:
+  - {fileID: 8300000, guid: d3f3453fada4a47db9dc0fe02c588cc9, type: 3}
+  - {fileID: 8300000, guid: 8c1ac9cf171594d51b5473fcca957c3a, type: 3}
+  - {fileID: 8300000, guid: 4b5f21c88157d40c5979370655baa394, type: 3}
+  - {fileID: 8300000, guid: 171739e00143841c0801c4b1a3068cae, type: 3}
+  - {fileID: 8300000, guid: 3e4a76ae04ce144489aae4edbe5c943e, type: 3}
+  - {fileID: 8300000, guid: bb93bd48052f7463dbcfaeb461a316bd, type: 3}
+  - {fileID: 8300000, guid: 74c41f8e789e3428baf3e04dc25a66e0, type: 3}
+  - {fileID: 8300000, guid: ace467ac7f0c047acac567d5a5053c27, type: 3}
+  - {fileID: 8300000, guid: 2488c42bd94a142fd93f6173a07ab503, type: 3}
+  - {fileID: 8300000, guid: a0f33e6cabff6432aa1428da7e65ddaf, type: 3}
+  - {fileID: 8300000, guid: 3c55bfc3461714726a707fcb58945133, type: 3}
+  - {fileID: 8300000, guid: c917a38c314ef4daeb3b36c36a630f9c, type: 3}
+  stepClips:
+  - {fileID: 8300000, guid: 94348d75e2c544d3f949b6d495d5284e, type: 3}
+  - {fileID: 8300000, guid: 669b73d98734049c58f75c53947e53ad, type: 3}
+  - {fileID: 8300000, guid: d298d28e4cc254de98f11d681b584ab3, type: 3}
+  - {fileID: 8300000, guid: af13c0a82dcad4de79d778b028948253, type: 3}
+  - {fileID: 8300000, guid: a628a57fede784abbbfc8df855cc9506, type: 3}
+  - {fileID: 8300000, guid: a3d519d2ff41f4dcb962ecc7b37b7cb5, type: 3}
 --- !u!1 &301230425
 GameObject:
   m_ObjectHideFlags: 0
@@ -9626,7 +9665,7 @@ AudioSource:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2042691865}
-  m_Enabled: 0
+  m_Enabled: 1
   serializedVersion: 4
   OutputAudioMixerGroup: {fileID: 0}
   m_audioClip: {fileID: 0}
