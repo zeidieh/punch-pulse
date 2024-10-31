@@ -20,6 +20,13 @@ public class MoveEnemyInFront : MonoBehaviour
     private float initialXPosition;  // To store the enemy's initial X position (vertical)
     private float initialYPosition;
 
+    public float animationRotationOffset = 20f; // Adjust this value as needed
+    private Quaternion initialRotation;
+
+    // Movement audio
+    public AudioSource movementAudioSource;  // Assign this in the Inspector
+    public AudioClip footsteps;
+    private bool isMoving = false;
 
     // Start is called before the first frame update
     void Start()
@@ -33,6 +40,24 @@ public class MoveEnemyInFront : MonoBehaviour
         if (enemy != null)
         {
             initialYPosition = enemy.position.y;
+            initialRotation = enemy.rotation;
+        }
+
+        if (movementAudioSource == null)
+        {
+            movementAudioSource = enemy.GetComponent<AudioSource>();
+            if (movementAudioSource == null)
+            {
+                Debug.LogWarning("AudioSource not found on the enemy. Please assign it in the Inspector or add an AudioSource component to the enemy.");
+            }
+        }
+
+        if (movementAudioSource != null)
+        {
+            movementAudioSource.loop = true;
+            movementAudioSource.clip = footsteps;
+            movementAudioSource.volume = 1f;
+            movementAudioSource.Play();
         }
 
         // Subscribe to trigger action
@@ -50,6 +75,7 @@ public class MoveEnemyInFront : MonoBehaviour
     {
         SetTargetPositionInFrontOfPlayer();
         shouldMove = true;  // Start moving the enemy
+
     }
 
     // Sets the target position for the enemy in front of the player (only Z and Y change)
@@ -73,16 +99,48 @@ public class MoveEnemyInFront : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        // if (shouldMove)
+        //{
+        //    MoveEnemyTowardsTarget(targetPosition);
+        //}
         if (shouldMove)
         {
-            MoveEnemyTowardsTarget();
+            float distanceToTarget = MoveEnemyTowardsTarget(targetPosition);
+            if (distanceToTarget < 0.8f)
+            {
+                shouldMove = false;
+            }
+        }
+        // Adjust volume based on movement
+        if (movementAudioSource != null)
+        {
+            //movementAudioSource.volume = shouldMove ? 1f : 0f;
         }
     }
 
-    // Smoothly moves the enemy towards the target position (only in Z and Y)
-    void MoveEnemyTowardsTarget()
+    private void StartMovementAudio()
     {
-        if (enemy == null) return;
+        if (movementAudioSource != null && !isMoving)
+        {
+            movementAudioSource.loop = true;
+            movementAudioSource.clip = footsteps;
+            movementAudioSource.Play();
+            isMoving = true;
+        }
+    }
+
+    private void StopMovementAudio()
+    {
+        if (movementAudioSource != null && isMoving)
+        {
+            movementAudioSource.Stop();
+            isMoving = false;
+        }
+    }
+
+    public float MoveEnemyTowardsTarget(Vector3 targetPosition)
+    {
+        if (enemy == null) return 0.0f;
 
         // Move the enemy towards the target position (only Z and Y)
         Vector3 currentPosition = enemy.position;
@@ -94,27 +152,25 @@ public class MoveEnemyInFront : MonoBehaviour
         enemy.position = currentPosition;
 
         float distanceToTarget = Vector3.Distance(currentPosition, targetPosition);
-        if (distanceToTarget < 0.1f)
-        {
-            shouldMove = false;  // Stop moving once close enough
-        }
-
+        //if (distanceToTarget < 0.07f)
+        //{
+        //    shouldMove = false;  // Stop moving once close enough
+        //}
 
         // Rotate the enemy to face the player along the X-axis (vertical rotation)
         RotateEnemyTowardsPlayer();
-
-
+        return distanceToTarget;
     }
 
     // Rotates the enemy to face the player (only around X-axis)
-    void RotateEnemyTowardsPlayer()
+    /*public void RotateEnemyTowardsPlayer()
     {
         if (enemy == null || playerCamera == null) return;
 
         // Get the direction from the enemy to the player (ignoring X-axis difference)
         Vector3 directionToPlayer = playerCamera.transform.position - enemy.position;
-        //directionToPlayer.x = 0;  // Ignore vertical (X-axis) difference
-        directionToPlayer.z = 0;
+        directionToPlayer.y = 0;  // Ignore vertical (X-axis) difference
+        // directionToPlayer.z = 0;
         // Calculate the target rotation
         Quaternion targetRotation = Quaternion.LookRotation(directionToPlayer, Vector3.up);
 
@@ -128,6 +184,37 @@ public class MoveEnemyInFront : MonoBehaviour
         {
             shouldMove = false;  // Stop rotating once close enough
         }
-    }
+    }*/
 
+    public void RotateEnemyTowardsPlayer()
+    {
+        if (enemy == null || playerCamera == null) return;
+
+        // Get the direction from the enemy to the player
+        Vector3 directionToPlayer = playerCamera.transform.position - enemy.position;
+        directionToPlayer.y = 0;  // Ignore vertical difference
+
+        // Calculate the target rotation
+        Quaternion targetRotation = Quaternion.LookRotation(directionToPlayer, Vector3.up);
+
+        // Apply the rotation smoothly over time
+        enemy.rotation = Quaternion.Slerp(enemy.rotation, targetRotation, rotationSpeed * Time.deltaTime);
+
+        // Apply correction for animation rotation
+        Vector3 currentEulerAngles = enemy.rotation.eulerAngles;
+        //currentEulerAngles.y += animationRotationOffset;
+        enemy.rotation = Quaternion.Euler(currentEulerAngles);
+
+        // Ensure the enemy stays upright
+        Vector3 uprightEulerAngles = enemy.rotation.eulerAngles;
+        uprightEulerAngles.x = initialRotation.eulerAngles.x;
+        uprightEulerAngles.z = initialRotation.eulerAngles.z;
+        enemy.rotation = Quaternion.Euler(uprightEulerAngles);
+
+        // Stop rotation once it's nearly complete
+        if (Quaternion.Angle(enemy.rotation, targetRotation) < 0.1f)
+        {
+            shouldMove = false;  // Stop rotating once close enough
+        }
+    }
 }

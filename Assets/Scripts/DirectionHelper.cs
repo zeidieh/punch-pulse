@@ -17,6 +17,7 @@ public class DirectionHelper : MonoBehaviour
     public AudioClip[] clockDirectionClips; // 12 audio clips for each hour direction
     public AudioClip[] stepClips; // Audio clips representing the number of steps away (e.g. 1 step, 2 steps, etc.)
 
+    private bool isAudioPlaying = false;
 
     // Start is called before the first frame update
     void Start()
@@ -28,7 +29,7 @@ public class DirectionHelper : MonoBehaviour
 
         // Subscribe to trigger action
         leftTriggerAction.action.performed += OnLeftTriggerPressed;
-        Debug.Log("Left Trigger Action Performed");
+        // Debug.Log("Left Trigger Action Performed");
     }
 
     private void OnDestroy()
@@ -47,6 +48,11 @@ public class DirectionHelper : MonoBehaviour
     // Called when the right trigger is pressed
     private void OnLeftTriggerPressed(InputAction.CallbackContext context)
     {
+        if (isAudioPlaying)
+        {
+            // Debug.Log("Audio is currently playing, skipping this trigger.");
+            return;
+        }
         Vector3 playerPosition = playerCamera.transform.position;
         Vector3 enemyPosition = enemy.transform.position;
 
@@ -66,25 +72,25 @@ public class DirectionHelper : MonoBehaviour
         // Adjust angle to match clock face (12 o'clock is forward)
         angle = (angle + 180) % 360;
 
-        Debug.Log($"Adjusted angle: {angle}");
+        // Debug.Log($"Adjusted angle: {angle}");
 
         // Determine clock direction
         string clockDirection = GetClockDirection(angle);
 
         // Calculate distance and steps
-        Debug.Log($"Player position: {playerPosition}, Enemy position: {enemyPosition}");
+        // Debug.Log($"Player position: {playerPosition}, Enemy position: {enemyPosition}");
 
         // Calculate distance ignoring vertical component
         Vector3 playerPositionFlat = new Vector3(playerPosition.x, 0, playerPosition.z);
         Vector3 enemyPositionFlat = new Vector3(enemyPosition.x, 0, enemyPosition.z);
         float distance = Vector3.Distance(playerPositionFlat, enemyPositionFlat);
-        Debug.Log($"Step distance: {stepDistance}");
-        Debug.Log($"Distance to enemy: {distance}");
+        // Debug.Log($"Step distance: {stepDistance}");
+        // Debug.Log($"Distance to enemy: {distance}");
 
         int steps = Mathf.CeilToInt(distance / stepDistance);
 
         // Output the result
-        Debug.Log($"Enemy is at {clockDirection}. {steps} steps away.");
+        // Debug.Log($"Enemy is at {clockDirection}. {steps} steps away.");
 
         // Visualize the directions (for debugging)
         // Debug.DrawRay(playerPosition, playerForward * 5f, Color.blue, 2f);
@@ -101,7 +107,7 @@ public class DirectionHelper : MonoBehaviour
     {
         // Normalize angle to 0-360 range
         angle = (angle + 360) % 360;
-        Debug.Log($"Enemy angle on a scale of 0-360 : {angle}");
+        // Debug.Log($"Enemy angle on a scale of 0-360 : {angle}");
 
         // Convert angle to clock direction
         int clockHour = Mathf.RoundToInt(angle / 30f);
@@ -116,6 +122,7 @@ public class DirectionHelper : MonoBehaviour
     
     private IEnumerator PlayDirectionAndStepsAudio(int clockDirectionIndex, int steps)
     {
+        isAudioPlaying = true;
         // Play clock direction audio first
         if (clockDirectionClips != null && clockDirectionIndex >= 0 && clockDirectionIndex < clockDirectionClips.Length)
         {
@@ -127,6 +134,8 @@ public class DirectionHelper : MonoBehaviour
         else
         {
             Debug.LogWarning("Clock direction audio clip not found!");
+            isAudioPlaying = false;
+            yield break;
         }
 
         // Play steps audio next
@@ -140,6 +149,10 @@ public class DirectionHelper : MonoBehaviour
         else
         {
             Debug.LogWarning("Steps audio clip not found!");
+            isAudioPlaying = false;
+            yield break;
         }
+        isAudioPlaying = false;
+     
     }
 }

@@ -20,8 +20,6 @@ public class PlayAudioOnBoxing : MonoBehaviour
     public XRBaseController leftController;  // Assign via Inspector
     public XRBaseController rightController; // Assign via Inspector
     public InputActionReference hapticAction;
-    public int score = 0;  // Variable to keep track of the score
-    public TMP_Text scoreText; // Assign via Inspector, TextMeshPro text element to display the score
 
     public bool useVelocity = true;
     public float minVelocity = 0;
@@ -30,8 +28,10 @@ public class PlayAudioOnBoxing : MonoBehaviour
     public bool randomizePitch = true;
     public float minPitch = 0.6f;
     public float maxPitch = 1.2f;
+    private Transform hittingGlove;
+    private Vector3 hittingGloveVelocity;
 
-    private bool hasPlayed = false; // Flag to track if the sound has been played
+    public bool hasPlayed = false; // Flag to track if the sound has been played
     private bool isCheering = false; // Flag to check if cheering is playing
     public float noCollisionTimeout = 5f; // Time in seconds before stopping the cheering sound
     public float cheerFadeOutDuration = 1.5f;
@@ -43,11 +43,16 @@ public class PlayAudioOnBoxing : MonoBehaviour
     public Transform rightControllerTransform;
     public float minForwardDistance = 0.2f; // Minimum distance the controller needs to be in front of the player
 
+    public Animator modelAnimator;
+    // New variables for hit detection
+    public string headColliderTag = "Head_Collider";
+    public string bodyColliderTag = "Torso_Collider";
+    public string component;
+
     // Start is called before the first frame update
     void Start()
     {
         source = GetComponent<AudioSource>();
-        UpdateScoreText(); // Initialize score display
 
         if (playerCamera == null)
             playerCamera = Camera.main;
@@ -79,7 +84,7 @@ public class PlayAudioOnBoxing : MonoBehaviour
         }
     }
 
-    private bool IsControllerInFront(Transform controllerTransform)
+    protected virtual bool IsControllerInFront(Transform controllerTransform)
     {
         if (controllerTransform == null || playerCamera == null)
             return false;
@@ -98,35 +103,75 @@ public class PlayAudioOnBoxing : MonoBehaviour
         return dotProduct > 0 && forwardDistance >= minForwardDistance;
     }
 
-    // OnTriggerEnter
-    void OnTriggerEnter(Collider other)
+    void TriggerBodyHitAnimation()
     {
-        if (!hasPlayed && other.CompareTag(targetTag))
+        if (modelAnimator != null)
         {
-            // Check if either controller is in front of the player
+            modelAnimator.SetTrigger("Hit_body");
+        }
+        else
+        {
+            Debug.LogWarning("Animator not assigned!");
+        }
+    }
+
+    protected virtual void TriggerHeadHitAnimation()
+    {
+        if (modelAnimator != null)
+        {
+            modelAnimator.SetTrigger("Hit_Head");
+        }
+        else
+        {
+            Debug.LogWarning("Animator not assigned!");
+        }
+    }
+
+    // OnTriggerEnter
+    protected virtual void OnTriggerEnter(Collider other)
+    {
+        
+        if (!hasPlayed && (other.CompareTag(headColliderTag) || other.CompareTag(bodyColliderTag)))
+        {
+            Debug.Log("Punch hit! Component : " + component + " Tag : " + other.gameObject.tag);
+            Debug.Log("Gloves : " + other.CompareTag(targetTag) + " Head punch : " + other.CompareTag(headColliderTag) + " Body punch : " + other.CompareTag(bodyColliderTag));
             bool isLeftControllerInFront = IsControllerInFront(leftControllerTransform);
             bool isRightControllerInFront = IsControllerInFront(rightControllerTransform);
-            Debug.Log("Left controller extended : " + isLeftControllerInFront + "\n Right controller extended : " + isRightControllerInFront + "\n Cheering sound : " + isCheering);
+
+            hittingGlove = isLeftControllerInFront ? leftControllerTransform : rightControllerTransform;
+            VelocityEstimator estimator = hittingGlove.GetComponent<VelocityEstimator>();
+            hittingGloveVelocity = estimator.GetVelocityEstimate();
+            float velocityMagnitude = hittingGloveVelocity.magnitude;
+            
 
             if (isLeftControllerInFront || isRightControllerInFront)
             {
                 hasPlayed = true;
-                PlaySound(other);
-                score++;
-                UpdateScoreText();
-                PlayCheerSound();
+                PlaySound(velocityMagnitude);
 
+                // Determine which animation to play based on hit location
+                if (other.CompareTag(headColliderTag))
+                {
+                    TriggerHeadHitAnimation();
+                    ScoreManager.AddScore(2);
+                }
+                else
+                {
+                    TriggerBodyHitAnimation();
+                    ScoreManager.AddScore(1);
+                }
+                
             }
         }
     }
 
-    void PlaySound(Collider other)
-    {
-        VelocityEstimator estimator = other.GetComponent<VelocityEstimator>();
 
-        if (estimator && useVelocity)
+    protected virtual void PlaySound(float v)
+    {
+       
+        if (useVelocity)
         {
-            float v = estimator.GetVelocityEstimate().magnitude;
+            Debug.Log("Hitting glove velocity: " + v);
             ApplyHapticFeedbackBasedOnVelocity(v);
 
             float volume;
@@ -186,10 +231,9 @@ public class PlayAudioOnBoxing : MonoBehaviour
     // OnTriggerExit
     void OnTriggerExit(Collider other)
     {
-        if (other.CompareTag(targetTag))
-        {
+       
             hasPlayed = false; // Reset the flag when the player exits the collision box
-        }
+        
     }
 
     void SendHapticImpulse(XRBaseController controller, float amplitude, float duration)
@@ -206,20 +250,13 @@ public class PlayAudioOnBoxing : MonoBehaviour
         float intensity = velocity / maxVelocity;
 
         // Clamps the given value between the given minimum float and maximum float values.
-        intensity = Mathf.Clamp(intensity, 0.25f, 0.75f);
+        intensity = Mathf.Clamp(intensity, 0.4f, 0.75f);
 
         // Apply the intensity to the haptic feedback
-        SendHapticImpulse(leftController, intensity, 0.2f);
-        SendHapticImpulse(rightController, intensity, 0.2f);
+        SendHapticImpulse(leftController, intensity, 0.1f);
+        SendHapticImpulse(rightController, intensity, 0.1f);
     }
 
-    void UpdateScoreText()
-    {
-        if (scoreText != null)
-        {
-            scoreText.text = score.ToString();
-        }
-    }
 
     private IEnumerator FadeOutCheering()
     {
