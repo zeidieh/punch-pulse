@@ -26,7 +26,17 @@ public class MoveEnemyInFront : MonoBehaviour
     // Movement audio
     public AudioSource movementAudioSource;  // Assign this in the Inspector
     public AudioClip footsteps;
-    private bool isMoving = false;
+    //rivate bool isMoving = false;
+    private static int rightTriggerPressCount = 0;
+
+    private float lastAudioPlayTime = 0f;
+    private float audioCooldown = 0.5f;
+
+    // Public static method to get the count
+    public static int GetRightTriggerPressCount()
+    {
+        return rightTriggerPressCount;
+    }
 
     // Start is called before the first frame update
     void Start()
@@ -54,16 +64,15 @@ public class MoveEnemyInFront : MonoBehaviour
 
         if (movementAudioSource != null)
         {
-            movementAudioSource.loop = true;
             movementAudioSource.clip = footsteps;
             movementAudioSource.volume = 1f;
-            movementAudioSource.Play();
         }
 
         // Subscribe to trigger action
         rightTriggerAction.action.performed += OnRightTriggerPressed;
     }
 
+    private bool postTutorialFlag = false;
     private void OnDestroy()
     {
         // Unsubscribe to avoid memory leaks
@@ -74,6 +83,7 @@ public class MoveEnemyInFront : MonoBehaviour
     private void OnRightTriggerPressed(InputAction.CallbackContext context)
     {
         SetTargetPositionInFrontOfPlayer();
+        rightTriggerPressCount++;
         shouldMove = true;  // Start moving the enemy
 
     }
@@ -116,31 +126,24 @@ public class MoveEnemyInFront : MonoBehaviour
         {
             //movementAudioSource.volume = shouldMove ? 1f : 0f;
         }
-    }
-
-    private void StartMovementAudio()
-    {
-        if (movementAudioSource != null && !isMoving)
+        // Continuously check if the tutorial status has changed
+        if (TutorialManager.TutorialCompleted && !postTutorialFlag)
         {
-            movementAudioSource.loop = true;
-            movementAudioSource.clip = footsteps;
-            movementAudioSource.Play();
-            isMoving = true;
-        }
-    }
-
-    private void StopMovementAudio()
-    {
-        if (movementAudioSource != null && isMoving)
-        {
-            movementAudioSource.Stop();
-            isMoving = false;
+            rightTriggerPressCount = 0;
+            postTutorialFlag = true;
         }
     }
 
     public float MoveEnemyTowardsTarget(Vector3 targetPosition)
     {
         if (enemy == null) return 0.0f;
+
+        // Play the audio clip
+        if (movementAudioSource != null && footsteps != null && Time.time - lastAudioPlayTime > audioCooldown)
+        {
+            movementAudioSource.PlayOneShot(footsteps);
+            lastAudioPlayTime = Time.time;
+        }
 
         // Move the enemy towards the target position (only Z and Y)
         Vector3 currentPosition = enemy.position;
@@ -161,30 +164,6 @@ public class MoveEnemyInFront : MonoBehaviour
         RotateEnemyTowardsPlayer();
         return distanceToTarget;
     }
-
-    // Rotates the enemy to face the player (only around X-axis)
-    /*public void RotateEnemyTowardsPlayer()
-    {
-        if (enemy == null || playerCamera == null) return;
-
-        // Get the direction from the enemy to the player (ignoring X-axis difference)
-        Vector3 directionToPlayer = playerCamera.transform.position - enemy.position;
-        directionToPlayer.y = 0;  // Ignore vertical (X-axis) difference
-        // directionToPlayer.z = 0;
-        // Calculate the target rotation
-        Quaternion targetRotation = Quaternion.LookRotation(directionToPlayer, Vector3.up);
-
-
-        // Apply the rotation smoothly over time
-        enemy.rotation = Quaternion.Slerp(enemy.rotation, targetRotation, rotationSpeed * Time.deltaTime);
-
-        // enemy.rotation.x = enemy.rotation.x + 270;
-        // Stop rotation once it's nearly complete
-        if (Quaternion.Angle(enemy.rotation, targetRotation) < 0.1f)
-        {
-            shouldMove = false;  // Stop rotating once close enough
-        }
-    }*/
 
     public void RotateEnemyTowardsPlayer()
     {
@@ -216,5 +195,9 @@ public class MoveEnemyInFront : MonoBehaviour
         {
             shouldMove = false;  // Stop rotating once close enough
         }
+    }
+    public static void ResetTriggerPressCount()
+    {
+        rightTriggerPressCount = 0;
     }
 }

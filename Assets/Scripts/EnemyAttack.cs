@@ -5,9 +5,10 @@ using UnityEngine.XR;
 
 public class EnemyAttackBehavior : MonoBehaviour
 {
-    public float minAttackInterval = 2f;
-    public float maxAttackInterval = 10f;
-    public float cooldownAfterAttack = 5f;
+    public float minAttackInterval;
+    public float maxAttackInterval;
+    public float cooldownAfterAttack;
+    public float reflex_time_duration;
     private AudioClip attackIncomingSound;
     public AudioClip attackIncomingSoundEasy;
     public AudioClip attackIncomingSoundHard;
@@ -31,18 +32,71 @@ public class EnemyAttackBehavior : MonoBehaviour
     public GameObject enemyObject;
     public float safeDistance; // The distance at which the player is considered safe
     public Animator modelAnimator;
+    private bool postTutorialFlag = false;
 
+    private AccessibleMenu.DifficultyLevel currentDifficulty;
+
+    private static int playerDuckCount = 0;
+    private static int playerHitCount = 0;
+
+    public static int GetPlayerHitCount()
+    {
+        return playerHitCount;
+    }
+
+    public static int GetPlayerDuckCount()
+    {
+        return playerDuckCount;
+    }
+
+    void Update()
+    {
+        // Continuously check if the tutorial status has changed
+        if (TutorialManager.TutorialCompleted && !postTutorialFlag)
+        {
+            playerDuckCount = 0;
+            playerHitCount = 0;
+            postTutorialFlag = true;
+        }
+    }
 
     void Start()
     {
         StartCoroutine(AttackRoutine());
         audioSource = GetComponent<AudioSource>();
+        UpdateDifficultySettings();
         if (audioSource == null)
         {
             audioSource = gameObject.AddComponent<AudioSource>();
         }
     }
 
+    void UpdateDifficultySettings()
+    {
+        currentDifficulty = AccessibleMenu.CurrentDifficulty;
+
+        switch (currentDifficulty)
+        {
+            case AccessibleMenu.DifficultyLevel.Easy:
+                minAttackInterval =  3f;
+                maxAttackInterval =  10f;
+                cooldownAfterAttack = 5f;
+                reflex_time_duration = 2f;
+                break;
+            case AccessibleMenu.DifficultyLevel.Medium:
+                minAttackInterval =  2f;
+                maxAttackInterval =  7f;
+                cooldownAfterAttack = 3f;
+                reflex_time_duration = 1.7f;
+                break;
+            case AccessibleMenu.DifficultyLevel.Hard:
+                minAttackInterval =  1.5f;
+                maxAttackInterval =  4f;
+                cooldownAfterAttack = 1.5f;
+                reflex_time_duration = 1.3f;
+                break;
+        }
+    }
 
     IEnumerator AttackRoutine()
     {
@@ -50,14 +104,28 @@ public class EnemyAttackBehavior : MonoBehaviour
         {
             if (canAttack)
             {
+                // Check if difficulty has changed
+                if (currentDifficulty != AccessibleMenu.CurrentDifficulty)
+                {
+                    UpdateDifficultySettings();
+                }
+
                 float randomDelay = Random.Range(minAttackInterval, maxAttackInterval);
                 yield return new WaitForSeconds(randomDelay);
 
-                yield return StartCoroutine(PerformAttack());
-
-                canAttack = false;
-                yield return new WaitForSeconds(cooldownAfterAttack);
-                canAttack = true;
+                // Check if the mode is offensive before attacking
+                if (AccessibleMenu.IsOffensiveMode && TutorialManager.TutorialAttackFlag)
+                {
+                    yield return StartCoroutine(PerformAttack());
+                    canAttack = false;
+                    yield return new WaitForSeconds(cooldownAfterAttack);
+                    canAttack = true;
+                }
+                else
+                {
+                    // If in defensive mode, skip the attack
+                    Debug.Log("In defensive mode, skipping attack.");
+                }
             }
             else
             {
@@ -66,7 +134,7 @@ public class EnemyAttackBehavior : MonoBehaviour
         }
     }
 
-    IEnumerator PerformAttack()
+    public IEnumerator PerformAttack()
     {
         // Debug.Log("Enemy is attacking!");
         InputDevice headDevice = InputDevices.GetDeviceAtXRNode(XRNode.Head);
@@ -85,9 +153,6 @@ public class EnemyAttackBehavior : MonoBehaviour
         duckingThresholdPercentage = 0.75f; // Set to 75% of initial height
         duckingThreshold = duckingThresholdPercentage * initialHeadsetHeight;
 
-        // Set the attack sound based on the difficulty level
-        int difficultyLevel = DifficultyManager.Instance.GetDifficultyLevel();
-       
 
         // Flash red lights
         if (warningLight != null)
@@ -118,20 +183,13 @@ public class EnemyAttackBehavior : MonoBehaviour
         }
         TriggerPunchAnimation();
 
-        // Debug.Log("diffuculty level : " + difficultyLevel);
-        if (difficultyLevel == 0)
-        {
-             attackIncomingSound = attackIncomingSoundEasy;
-        }
-        else
-        {
-            attackIncomingSound = attackIncomingSoundHard;
-        }
+        // Set the attack sound based on the current difficulty
+        attackIncomingSound = currentDifficulty == AccessibleMenu.DifficultyLevel.Easy ?
+            attackIncomingSoundEasy : attackIncomingSoundHard;
 
         audioSource.PlayOneShot(attackIncomingSound);
 
-        // Wait for 1s before checking if player is safe after the warning sound
-        yield return new WaitForSeconds(2f);
+        yield return new WaitForSeconds(reflex_time_duration);
 
         // Check if player is safe (ducking or far enough away)
         if (!IsPlayerSafe())
@@ -139,11 +197,13 @@ public class EnemyAttackBehavior : MonoBehaviour
             // If the player is not safe, reduce score
             audioSource.PlayOneShot(attackHitSound);
             ScoreManager.DecrementScore(5);
+            playerHitCount++;
         }
         else
         {
             // Debug.Log("Player is safe! No score penalty.");
             audioSource.PlayOneShot(attackMissSound);
+            playerDuckCount++;
             // Implement your actual attack logic here
         }
 
