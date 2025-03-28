@@ -18,6 +18,7 @@ public class TutorialManager : MonoBehaviour
     public GameObject objectToToggle0;
     public GameObject objectToToggle1;
     public AudioClip boxingbell;
+    public bool skipToLastStep = false;
 
     [System.Serializable]
     public class TutorialStep
@@ -39,6 +40,7 @@ public class TutorialManager : MonoBehaviour
     private bool isAudioPlaying = false;
 
     public EnemyAttackBehavior enemyAttackBehavior;
+    public RoundsManager roundsManager;
     public static bool TutorialCompleted = false;
 
     public static bool TutorialAttackFlag = false;
@@ -56,8 +58,15 @@ public class TutorialManager : MonoBehaviour
 
     void Start()
     {
-        instructionText.text = "Press right select button to start";
-        stepcount.text = "0";
+        if (skipToLastStep)
+        {
+            SkipToLastStep();
+        }
+        else
+        {
+            instructionText.text = "Press right select button to start";
+            stepcount.text = "0";
+        }
         nextButtonAction.action.performed += OnNextButtonPressed;
         exitTutorialAction.action.performed += ExitTutorial;
     }
@@ -100,32 +109,47 @@ public class TutorialManager : MonoBehaviour
         foreach (var obj in step.objectsToDeactivate)
             obj.SetActive(false);
 
-        currentClip = 0;
-        PlayNextClip();
+        /*if (skipToLastStep)
+        {
+            // If we've skipped to the last step, we might want to handle this differently
+            // For example, we might not want to play any audio
+            waitingForAction = false;
+        }
+        else
+        {*/
+
+            currentClip = 0;
+        StartCoroutine(PlayNextClip());
+        
     }
 
-    void PlayNextClip()
+    IEnumerator PlayNextClip()
     {
         var step = tutorialSteps[currentStep];
         if (currentClip < step.narration.Length)
         {
             audioSource.clip = step.narration[currentClip];
-            audioSource.Play();
+            audioSource.PlayOneShot(step.narration[currentClip]);
             isAudioPlaying = true;
-            StartCoroutine(WaitForClipEnd());
+            yield return new WaitForSeconds(step.narration[currentClip].length);
+            isAudioPlaying = false;
+            waitingForAction = true;
 
         }
         else
         {
             NextStep();
+            yield return new WaitForSeconds(1);
         }
     }
 
-    IEnumerator WaitForClipEnd()
+    private void SkipToLastStep()
     {
-        yield return new WaitForSeconds(audioSource.clip.length);
-        isAudioPlaying = false;
-        waitingForAction = true;
+        currentStep = tutorialSteps.Length - 1;
+        tutorialStarted = true;
+        UpdateTutorialStep();
+        // Optionally, you might want to call ExitTutorial here if you want to immediately end the tutorial
+        // ExitTutorial(new InputAction.CallbackContext());
     }
 
     void CheckRequiredAction()
@@ -144,7 +168,7 @@ public class TutorialManager : MonoBehaviour
             }
             else
             {
-                PlayNextClip();
+                StartCoroutine(PlayNextClip());
             }
         }
     }
@@ -163,33 +187,42 @@ public class TutorialManager : MonoBehaviour
         // Wait for the current audio clip to finish
         if (step.StepNum == 2)
         {
-            if (clipIndex == 0 || clipIndex == 5)
+            if (clipIndex == 0)
             {
-                yield return new WaitForSeconds(3);
+                Debug.Log("iNC wait time");
+                yield return new WaitForSeconds(7);
             }
             else if (clipIndex == 2)
             {
-                yield return new WaitForSeconds(1);
+                yield return new WaitForSeconds(2);
+            }
+            else if (clipIndex == 5)
+            {
+                Debug.Log("iNCREASED wait time");
+                yield return new WaitForSeconds(11);
             }
         }
         else if (step.StepNum == 3)
         {
             if (clipIndex == 0) { 
                 TutorialAttackFlag = true;
+                Debug.Log("Enemy attack set , called in clipindex 0");
                 yield return StartCoroutine(enemyAttackBehavior.PerformAttack());
                 TutorialAttackFlag = false;
-                yield return new WaitForSeconds(2);
+                yield return new WaitForSeconds(4);
             }
-            if (clipIndex == 1)
+            else if (clipIndex == 1)
             {
                 TutorialAttackFlag = true;
+                Debug.Log("Enemy attack set , called in clipindex 0");
                 yield return StartCoroutine(enemyAttackBehavior.PerformAttack());
                 TutorialAttackFlag = false;
-                yield return new WaitForSeconds(2);
+                yield return new WaitForSeconds(5);
             }
         }
         Debug.Log("Waiting for audio to finish");
-        PlayNextClip();
+        StartCoroutine(PlayNextClip());
+        yield return new WaitForSeconds(2);
     }
 
     private void OnNextButtonPressed(InputAction.CallbackContext context)
@@ -230,7 +263,14 @@ public class TutorialManager : MonoBehaviour
         {
             TutorialCompleted = true;
             TutorialAttackFlag = true;
-            audioSource.PlayOneShot(boxingbell);
+            if (roundsManager != null)
+            {
+                roundsManager.BeginRounds();
+            }
+            else
+            {
+                Debug.LogError("RoundsManager reference is missing!");
+            }
             // SceneManager.LoadScene("BoxingRing");
         }
     }

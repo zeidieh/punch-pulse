@@ -57,9 +57,19 @@ public class PlayAudioOnBoxing : MonoBehaviour
         return playerHeadPunchCount;
     }
 
+    public static void SetPlayerHeadPunchCount(int value)
+    {
+        playerHeadPunchCount = value;
+    }
+
     public static int GetPlayerBodyPunchCount()
     {
         return playerBodyPunchCount;
+    }
+
+    public static void SetPlayerBodyPunchCount(int value)
+    {
+        playerBodyPunchCount = value;
     }
 
     // Start is called before the first frame update
@@ -153,8 +163,8 @@ public class PlayAudioOnBoxing : MonoBehaviour
         
         if (!hasPlayed && (other.CompareTag(headColliderTag) || other.CompareTag(bodyColliderTag)))
         {
-            Debug.Log("Punch hit! Component : " + component + " Tag : " + other.gameObject.tag);
-            Debug.Log("Gloves : " + other.CompareTag(targetTag) + " Head punch : " + other.CompareTag(headColliderTag) + " Body punch : " + other.CompareTag(bodyColliderTag));
+            // Debug.Log("Punch hit! Component : " + component + " Tag : " + other.gameObject.tag);
+            // Debug.Log("Gloves : " + other.CompareTag(targetTag) + " Head punch : " + other.CompareTag(headColliderTag) + " Body punch : " + other.CompareTag(bodyColliderTag));
             bool isLeftControllerInFront = IsControllerInFront(leftControllerTransform);
             bool isRightControllerInFront = IsControllerInFront(rightControllerTransform);
 

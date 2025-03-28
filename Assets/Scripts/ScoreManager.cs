@@ -10,13 +10,19 @@ public class ScoreManager : MonoBehaviour
     public AudioClip[] numberClips;
     public AudioSource audioSource;
     public AudioClip playerScoreIs;
-
+    public AudioClip enemyScoreIs;
+    public AudioClip Round;
+    public AudioClip moreThan100;
     public static int Score { get; private set; }
     public TextMeshProUGUI scoreText;
+    public static int EnemyScore { get; private set; }
+    public int RoundNum = 1;
+    public TextMeshProUGUI enemyScoreText;
     public InputActionReference rightButtonAction;
+    public RoundsManager roundsManager;
+    
 
-
-    private bool isAnnouncingScore = false; // New flag to track if score is being announced
+    private bool isAnnouncing = false;
 
     private void OnEnable()
     {
@@ -30,9 +36,9 @@ public class ScoreManager : MonoBehaviour
 
     private void OnRightButtonPressed(InputAction.CallbackContext context)
     {
-        if (!isAnnouncingScore) // Only start if not already announcing
+        if (!isAnnouncing)
         {
-            StartCoroutine(AnnounceScore());
+            StartCoroutine(AnnounceAllInfo());
         }
     }
 
@@ -52,6 +58,13 @@ public class ScoreManager : MonoBehaviour
     private void Start()
     {
         UpdateScoreDisplay();
+        UpdateEnemyScoreDisplay();
+
+        if (roundsManager == null)
+        {
+            Debug.LogWarning("RoundsManager not assigned in the inspector!");
+        }
+
     }
 
     private static void CheckAndUpdateDifficulty()
@@ -66,6 +79,7 @@ public class ScoreManager : MonoBehaviour
             AccessibleMenu.SetDifficulty(AccessibleMenu.DifficultyLevel.Medium);
             //audioSource.PlayOneShot(difficultyIncreaseSound);
         }
+        /*        
         else if (Score <= 5 && AccessibleMenu.CurrentDifficulty == AccessibleMenu.DifficultyLevel.Medium)
         {
             AccessibleMenu.SetDifficulty(AccessibleMenu.DifficultyLevel.Easy);
@@ -75,21 +89,88 @@ public class ScoreManager : MonoBehaviour
         {
             AccessibleMenu.SetDifficulty(AccessibleMenu.DifficultyLevel.Medium);
             //audioSource.PlayOneShot(difficultyDecreaseSound);
-        }
+        }*/
     }
 
+    /*    
     public static void AddScore(int amount)
     {
-        Score += amount;
-        Instance.UpdateScoreDisplay();
-        CheckAndUpdateDifficulty();
+        
+            // Debug.Log("Round is ongoing");
+            // Perform round-specific actions
+            Score += amount;
+            Instance.UpdateScoreDisplay();
+        
+
+        //CheckAndUpdateDifficulty();
     }
 
     public static void DecrementScore(int amount)
     {
-        Score = Mathf.Max(0, Score - amount);
+        
+            // Debug.Log("Round is ongoing");
+            Score = Mathf.Max(0, Score - amount);
+            Instance.UpdateScoreDisplay();
+        
+
+        //CheckAndUpdateDifficulty();
+    }
+
+    public static void AddEnemyScore(int amount)
+    {
+         // Debug.Log("Round is ongoing");
+            EnemyScore += amount;
+            Instance.UpdateEnemyScoreDisplay();
+        
+    }*/
+
+    public static void AddScore(int amount)
+    {
+        if (Instance.roundsManager != null && Instance.roundsManager.isRoundOngoing)
+        {
+            Score += amount;
+            Instance.UpdateScoreDisplay();
+        } 
+        else if (Instance.roundsManager == null)
+        {
+            Debug.LogWarning("RoundsManager not assigned in the inspector!");
+        }
+    }
+
+    public static void DecrementScore(int amount)
+    {
+        if (Instance.roundsManager != null && Instance.roundsManager.isRoundOngoing)
+        {
+            Score = Mathf.Max(0, Score - amount);
+            Instance.UpdateScoreDisplay();
+        }
+        else if(Instance.roundsManager == null)
+        {
+            Debug.LogWarning("RoundsManager not assigned in the inspector!");
+
+        }
+    }
+
+    public static void AddEnemyScore(int amount)
+    {
+        if (Instance.roundsManager != null && Instance.roundsManager.isRoundOngoing)
+        {
+            EnemyScore += amount;
+            Instance.UpdateEnemyScoreDisplay();
+        }
+        else if(Instance.roundsManager == null)
+        {
+            Debug.LogWarning("RoundsManager not assigned in the inspector!");
+        }
+    }
+
+    public static void ResetScores()
+    {
+        // Reset the scores on every game mode break
+        Score = 0;
+        EnemyScore = 0;
         Instance.UpdateScoreDisplay();
-        CheckAndUpdateDifficulty();
+        Instance.UpdateEnemyScoreDisplay();
     }
 
     private void UpdateScoreDisplay()
@@ -100,17 +181,42 @@ public class ScoreManager : MonoBehaviour
         }
     }
 
-    private IEnumerator AnnounceScore()
+    private void UpdateEnemyScoreDisplay()
     {
-        if (isAnnouncingScore) yield break; // Safety check
+        if (enemyScoreText != null)
+        {
+            enemyScoreText.text = EnemyScore.ToString();
+        }
+    }
 
-        isAnnouncingScore = true;
 
+    private IEnumerator AnnounceAllInfo()
+    {
+        isAnnouncing = true;
+
+        yield return StartCoroutine(AnnounceRound());
+        yield return StartCoroutine(AnnouncePlayerScore());
+        yield return StartCoroutine(AnnounceEnemyScore());
+
+        isAnnouncing = false;
+    }
+
+    public IEnumerator AnnounceRound()
+    {
+        audioSource.PlayOneShot(Round);
+        yield return new WaitForSeconds(Round.length);
+        RoundNum = roundsManager.RoundNumber;
+        audioSource.PlayOneShot(numberClips[RoundNum]);
+        yield return new WaitForSeconds(numberClips[RoundNum].length);
+        
+    }
+
+    public IEnumerator AnnouncePlayerScore()
+    {
         audioSource.PlayOneShot(playerScoreIs);
         yield return new WaitForSeconds(playerScoreIs.length);
 
-        string scoreString = Score.ToString();
-        if (Score < 61)
+        if (Score < 101)
         {
             Debug.Log("Score: " + Score);
             audioSource.PlayOneShot(numberClips[Score]);
@@ -118,26 +224,29 @@ public class ScoreManager : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning("Number audio clip not found for digit: " + Score);  
+            Debug.LogWarning("Number audio clip not found for digit: " + Score);
+            audioSource.PlayOneShot(moreThan100);
+            yield return new WaitForSeconds(moreThan100.length);
         }
-
-        /*
-        foreach (char digitChar in scoreString)
-        {
-            int digit = digitChar - '0';
-
-            if (digit >= 0 && digit < numberClips.Length)
-            {
-                audioSource.PlayOneShot(numberClips[digit]);
-                yield return new WaitForSeconds(numberClips[digit].length);
-            }
-            else
-            {
-                Debug.LogWarning("Number audio clip not found for digit: " + digit);
-                break;
-            }
-        }*/
-
-        isAnnouncingScore = false;
     }
+
+    public IEnumerator AnnounceEnemyScore()
+    {
+        audioSource.PlayOneShot(enemyScoreIs);
+        yield return new WaitForSeconds(enemyScoreIs.length);
+
+        if (EnemyScore < 101)
+        {
+            Debug.Log("Enemy Score: " + EnemyScore);
+            audioSource.PlayOneShot(numberClips[EnemyScore]);
+            yield return new WaitForSeconds(numberClips[EnemyScore].length);
+        }
+        else
+        {
+            Debug.LogWarning("Number audio clip not found for digit: " + EnemyScore);
+            audioSource.PlayOneShot(moreThan100);
+            yield return new WaitForSeconds(moreThan100.length);
+        }
+    }
+
 }

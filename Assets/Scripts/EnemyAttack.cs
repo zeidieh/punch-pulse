@@ -35,18 +35,34 @@ public class EnemyAttackBehavior : MonoBehaviour
     private bool postTutorialFlag = false;
 
     private AccessibleMenu.DifficultyLevel currentDifficulty;
+    public RoundsManager roundsManager;
+    public BoxingRingMapping ringMapping;
+    public GameModuleManager gameModuleManager;
 
     private static int playerDuckCount = 0;
     private static int playerHitCount = 0;
+
+    public float minDistanceFromPlayer;
+    public float maxDistanceFromPlayer;
 
     public static int GetPlayerHitCount()
     {
         return playerHitCount;
     }
 
+    public static void SetPlayerHitCount(int value)
+    {
+        playerHitCount = value;
+    }
+
     public static int GetPlayerDuckCount()
     {
         return playerDuckCount;
+    }
+
+    public static void SetPlayerDuckCount(int value)
+    {
+        playerDuckCount = value;
     }
 
     void Update()
@@ -85,15 +101,21 @@ public class EnemyAttackBehavior : MonoBehaviour
                 break;
             case AccessibleMenu.DifficultyLevel.Medium:
                 minAttackInterval =  2f;
-                maxAttackInterval =  7f;
-                cooldownAfterAttack = 3f;
-                reflex_time_duration = 1.7f;
+                maxAttackInterval =  4.5f;
+                cooldownAfterAttack = 1.3f;
+                reflex_time_duration = 1.25f;
                 break;
             case AccessibleMenu.DifficultyLevel.Hard:
                 minAttackInterval =  1.5f;
-                maxAttackInterval =  4f;
-                cooldownAfterAttack = 1.5f;
+                maxAttackInterval =  3f;
+                cooldownAfterAttack = 0.9f;
                 reflex_time_duration = 1.3f;
+                break;
+            case AccessibleMenu.DifficultyLevel.UltraHard:
+                minAttackInterval = 0.1f;
+                maxAttackInterval = 1.1f;
+                cooldownAfterAttack = 0.5f;
+                reflex_time_duration = 1f;
                 break;
         }
     }
@@ -114,7 +136,7 @@ public class EnemyAttackBehavior : MonoBehaviour
                 yield return new WaitForSeconds(randomDelay);
 
                 // Check if the mode is offensive before attacking
-                if (AccessibleMenu.IsOffensiveMode && TutorialManager.TutorialAttackFlag)
+                if ( (AccessibleMenu.IsOffensiveMode && TutorialManager.TutorialAttackFlag))
                 {
                     yield return StartCoroutine(PerformAttack());
                     canAttack = false;
@@ -124,7 +146,7 @@ public class EnemyAttackBehavior : MonoBehaviour
                 else
                 {
                     // If in defensive mode, skip the attack
-                    Debug.Log("In defensive mode, skipping attack.");
+                    // Debug.Log("In defensive mode, skipping attack.");
                 }
             }
             else
@@ -153,7 +175,7 @@ public class EnemyAttackBehavior : MonoBehaviour
         duckingThresholdPercentage = 0.75f; // Set to 75% of initial height
         duckingThreshold = duckingThresholdPercentage * initialHeadsetHeight;
 
-
+        // Debug.Log("Initial headset height: " + initialHeadsetHeight + ". Ducking threshold set to: " + duckingThreshold);
         // Flash red lights
         if (warningLight != null)
         {
@@ -167,12 +189,13 @@ public class EnemyAttackBehavior : MonoBehaviour
             if (MoveEnemyInFront != null)
             {
                 // Move the enemy in front of the player
+
                 SetTargetPositionInFrontOfPlayer();
                 float distanceToTarget;
                 do
                 {
                     distanceToTarget = MoveEnemyInFront.MoveEnemyTowardsTarget(targetPosition);
-                    Debug.Log("Distance to target: " + distanceToTarget);
+                    // Debug.Log("Distance to target: " + distanceToTarget);
                     yield return null; // Wait for the next frame
                 } while (distanceToTarget > 1f); // Continue until the enemy is close enough
             }
@@ -196,7 +219,8 @@ public class EnemyAttackBehavior : MonoBehaviour
         {
             // If the player is not safe, reduce score
             audioSource.PlayOneShot(attackHitSound);
-            ScoreManager.DecrementScore(5);
+            ScoreManager.AddEnemyScore(1);
+            ScoreManager.DecrementScore(4);
             playerHitCount++;
         }
         else
@@ -205,6 +229,30 @@ public class EnemyAttackBehavior : MonoBehaviour
             audioSource.PlayOneShot(attackMissSound);
             playerDuckCount++;
             // Implement your actual attack logic here
+        }
+
+        // Move enemy to new location right after punch animation is done.
+        // Move the enemy to a random position after the attack
+        
+        Vector3 newPosition = GetRandomPositionInFrontOfPlayer();
+
+        // Use the existing MoveEnemyInFront script to move the enemy
+
+        if (AccessibleMenu.CurrentDifficulty == AccessibleMenu.DifficultyLevel.UltraHard)
+        {
+            Debug.Log("Ultra hard survival mode, teleporting enemy after attack");
+            roundsManager.TeleportEnemyPositionSurvivalMode();
+        }
+        else
+        {
+            float distanceToTarget1;
+            do
+            {
+                distanceToTarget1 = MoveEnemyInFront.MoveEnemyTowardsTarget(newPosition);
+                yield return null;
+            } while (distanceToTarget1 > 1f);
+
+            Debug.Log("Enemy moved to new position after attack");
         }
 
     }
@@ -294,4 +342,45 @@ public class EnemyAttackBehavior : MonoBehaviour
         targetPosition.y = initialYPosition;  // Keep the enemy's y-coordinate fixed
     }
 
+    private Vector3 GetRandomPositionInFrontOfPlayer()
+    {
+        if (playerCamera == null)
+        {
+            Debug.LogWarning("Player Camera is not assigned!");
+            return transform.position;
+        }
+        
+        Debug.Log("Attack done, finding new position to move to");
+        // Get a random distance within the specified range
+        float randomDistance = Random.Range(minDistanceFromPlayer, maxDistanceFromPlayer);
+
+        // Calculate a random angle within a 180-degree arc in front of the player
+        float randomAngle = Random.Range(-120f, 120f);
+
+        // Calculate the forward direction of the player, ignoring vertical rotation
+        Vector3 playerForward = playerCamera.transform.forward;
+        playerForward.y = 0;
+        playerForward.Normalize();
+
+        // Rotate the forward vector by the random angle
+        Vector3 randomDirection = Quaternion.Euler(0, randomAngle, 0) * playerForward;
+
+        // Calculate the new position
+        Vector3 newPosition = playerCamera.transform.position + randomDirection * randomDistance;
+        newPosition.y = initialYPosition; // Keep the enemy's y-coordinate fixed
+
+        // Check if the new position is within the specified rectangle
+        if (newPosition.x < -3f || newPosition.x > 3f || newPosition.z < -3f || newPosition.z > 3f)
+        {
+            // If outside the rectangle, reset to the specified position
+            newPosition = new Vector3(0.17f, 0.9f, 1.3f);
+            Debug.Log("Position outside bounds. Reset to: " + newPosition);
+        }
+        else
+        {
+            Debug.Log("New position: " + newPosition);
+        }
+
+        return newPosition;
+    }
 }

@@ -41,18 +41,25 @@ public class AccessibleMenu : MonoBehaviour
 
     [Header("Audio")]
     public AudioSource audioSource;
+    public AudioSource enemyAudioCueSource;
     public AudioClip hoverSound;
     public AudioClip clickSound;
+    public AudioClip beepSound;
 
     [Header("Button Hover Sounds")]
     public AudioClip difficultyEasyHoverSound;
+    public AudioClip difficultyMediumHoverSound;
     public AudioClip difficultyHardHoverSound;
+    public AudioClip difficultyUltraHardHoverSound;
     public AudioClip tutorialHoverSound;
     public AudioClip boxingOffensiveHoverSound;
     public AudioClip boxingDefensiveHoverSound;
+    public AudioClip scoreNarrationOnSound;
+    public AudioClip scoreNarrationOffSound;
+    public AudioClip enemyAudioCueOnSound;
+    public AudioClip enemyAudioCueOffSound;
     public AudioClip resumeHoverSound;
     public AudioClip pauseMenuActive;
-    public AudioClip difficultyMediumHoverSound;
 
 
     [Header("UI")]
@@ -77,6 +84,11 @@ public class AccessibleMenu : MonoBehaviour
     private float lastJoystickYValue = 0f;
 
     private static DifficultyLevel currentDifficulty = DifficultyLevel.Easy;
+    private Coroutine scoreNarrationCoroutine;
+    private Coroutine enemyAudioCueCoroutine;
+    public GameObject enemy;
+    public GameObject player;
+
     private static bool isOffensiveMode = true;
     private static bool scoreNarration = false;
     private static bool enemyAudioCue = false;
@@ -85,7 +97,8 @@ public class AccessibleMenu : MonoBehaviour
     {
         Easy,
         Medium,
-        Hard
+        Hard,
+        UltraHard
     }
 
     public int currentLTCount;
@@ -129,9 +142,10 @@ public class AccessibleMenu : MonoBehaviour
             buttonHighlights[i] = menuButtons[i].GetComponent<CustomButtonHighlight>();
             if (buttonHighlights[i] == null)
             {
-                Debug.LogError($"CustomButtonHighlight component missing on button {i}");
+                Debug.LogWarning($"CustomButtonHighlight component missing on button {i}");
             }
         }
+
         isFirstActivation = true;
     }
 
@@ -158,14 +172,13 @@ public class AccessibleMenu : MonoBehaviour
         SetupButton(difficultyButton, ToggleDifficulty, "difficulty");
         SetupButton(tutorialButton, PlayTutorial, "tutorial");
         SetupButton(boxingModeButton, ToggleBoxingMode, "boxing");
-        SetupButton(boxingModeButton, ToggleScoreNarration, "score");
-        SetupButton(boxingModeButton, ToggleEnemyAudioCue, "enemy");
+        SetupButton(scoreNarrationButton, ToggleScoreNarration, "score");
+        SetupButton(enemyAudioCueButton, ToggleEnemyAudioCue, "enemy");
     }
 
     void SetupButton(Button button, UnityEngine.Events.UnityAction action, string buttonID)
     {
         button.onClick.AddListener(action);
-        button.onClick.AddListener(PlayClickSound);
 
         // Add EventTrigger component if it doesn't exist
         EventTrigger eventTrigger = button.gameObject.GetComponent<EventTrigger>();
@@ -235,11 +248,19 @@ public class AccessibleMenu : MonoBehaviour
             {
                 buttonHighlights[i].SetHighlighted(i == currentButtonIndex);
             }
+            else
+            {
+                Debug.LogWarning($"Button highlight at index {i} is null");
+            }
         }
-        EventSystem.current.SetSelectedGameObject(menuButtons[currentButtonIndex].gameObject);
+
+        if (EventSystem.current != null && currentButtonIndex >= 0 && currentButtonIndex < menuButtons.Length)
+        {
+            EventSystem.current.SetSelectedGameObject(menuButtons[currentButtonIndex].gameObject);
+        }
     }
 
-    void UpdateStats(int leftTrigCount, int rightTrigCount, int duckCount, int playerHitCount, int headPunchCount, int bodyPunchCount)
+    void UpdateMenuUIStats(int leftTrigCount, int rightTrigCount, int duckCount, int playerHitCount, int headPunchCount, int bodyPunchCount)
     {
         
         if (LTCount != null)
@@ -273,7 +294,7 @@ public class AccessibleMenu : MonoBehaviour
             currentPlayerHitCount = EnemyAttackBehavior.GetPlayerHitCount();
             currentPlayerHeadPunchCount = PlayAudioOnBoxing.GetPlayerHeadPunchCount();
             currentPlayerBodyPunchCount = PlayAudioOnBoxing.GetPlayerBodyPunchCount();
-            UpdateStats(currentLTCount, currentRTCount, currentDuckCount, currentPlayerHitCount, currentPlayerHeadPunchCount, currentPlayerBodyPunchCount);
+            UpdateMenuUIStats(currentLTCount, currentRTCount, currentDuckCount, currentPlayerHitCount, currentPlayerHeadPunchCount, currentPlayerBodyPunchCount);
             if (isFirstActivation)
             {
                 StartCoroutine(PlayPauseMenuActiveSound());
@@ -311,7 +332,6 @@ public class AccessibleMenu : MonoBehaviour
         switch (buttonID)
         {
             case "difficulty":
-                Debug.Log("Hovering over difficulty button, : " + isFirstActivation);
                 if (!isFirstActivation)
                 {
                     switch (currentDifficulty)
@@ -320,9 +340,12 @@ public class AccessibleMenu : MonoBehaviour
                             audioSource.PlayOneShot(difficultyEasyHoverSound);
                             break;
                         case DifficultyLevel.Medium:
-                            audioSource.PlayOneShot(difficultyMediumHoverSound);
+                            audioSource.PlayOneShot(difficultyEasyHoverSound);
                             break;
                         case DifficultyLevel.Hard:
+                            audioSource.PlayOneShot(difficultyMediumHoverSound);
+                            break;
+                        case DifficultyLevel.UltraHard:
                             audioSource.PlayOneShot(difficultyHardHoverSound);
                             break;
                     }
@@ -334,15 +357,16 @@ public class AccessibleMenu : MonoBehaviour
             case "boxing":
                 audioSource.PlayOneShot(isOffensiveMode ? boxingOffensiveHoverSound : boxingDefensiveHoverSound);
                 break;
+            case "score":
+                audioSource.PlayOneShot(scoreNarration ? scoreNarrationOnSound : scoreNarrationOffSound);
+                break;
+            case "enemy":
+                audioSource.PlayOneShot(enemyAudioCue ? enemyAudioCueOnSound : enemyAudioCueOffSound);
+                break;
             default:
                 audioSource.PlayOneShot(hoverSound);
                 break;
         }
-    }
-
-    void PlayClickSound()
-    {
-        //audioSource.PlayOneShot(clickSound);
     }
 
     void SendHapticImpulse(XRBaseController controller, float amplitude, float duration)
@@ -398,30 +422,44 @@ public class AccessibleMenu : MonoBehaviour
     public static bool IsOffensiveMode
     {
         get { return isOffensiveMode; }
+        set
+        {
+            isOffensiveMode = value;
+            if (Instance != null)
+            {
+                Instance.UpdateButtonTexts();
+            }
+        }
     }
 
 
     void ToggleDifficulty()
     {
-        switch (currentDifficulty)
+        if (currentDifficulty != DifficultyLevel.UltraHard)
         {
-            case DifficultyLevel.Easy:
-                currentDifficulty = DifficultyLevel.Medium;
-                break;
-            case DifficultyLevel.Medium:
-                currentDifficulty = DifficultyLevel.Hard;
-                break;
-            case DifficultyLevel.Hard:
-                currentDifficulty = DifficultyLevel.Easy;
-                break;
+            switch (currentDifficulty)
+            {
+                case DifficultyLevel.Easy:
+                    currentDifficulty = DifficultyLevel.Medium;
+                    break;
+                case DifficultyLevel.Medium:
+                    currentDifficulty = DifficultyLevel.Hard;
+                    break;
+                case DifficultyLevel.Hard:
+                    currentDifficulty = DifficultyLevel.Easy;
+                    break;
+            }
+            UpdateButtonTexts();
         }
-        UpdateButtonTexts();
-        PlayClickSound();
+        else
+        {
+            audioSource.PlayOneShot(difficultyUltraHardHoverSound);
+            UpdateButtonTexts();
+        }
     }
 
     void PlayTutorial()
     {
-        PlayClickSound();
 
         if (tutorialManager != null)
         {
@@ -438,19 +476,70 @@ public class AccessibleMenu : MonoBehaviour
     {
         isOffensiveMode = !isOffensiveMode;
         UpdateButtonTexts();
-        PlayClickSound();
     }
+
 
     void ToggleScoreNarration()
     {
-        // Toggle score narration
-        PlayClickSound();
+        scoreNarration = !scoreNarration;
+        if (scoreNarration)
+        {
+            scoreNarrationCoroutine = StartCoroutine(ScoreNarrationLoop());
+        }
+        else
+        {
+            if (scoreNarrationCoroutine != null)
+            {
+                StopCoroutine(scoreNarrationCoroutine);
+            }
+        }
+        UpdateButtonTexts();
     }
+
+    IEnumerator ScoreNarrationLoop()
+    {
+        while (scoreNarration)
+        {
+            yield return StartCoroutine(ScoreManager.Instance.AnnouncePlayerScore());
+            yield return new WaitForSeconds(12f);
+        }
+    }
+
 
     void ToggleEnemyAudioCue()
     {
-        // Toggle enemy audio cue
-        PlayClickSound();
+        enemyAudioCue = !enemyAudioCue;
+        if (enemyAudioCue)
+        {
+            if (enemyAudioCueCoroutine != null)
+            {
+                StopCoroutine(enemyAudioCueCoroutine);
+            }
+            enemyAudioCueCoroutine = StartCoroutine(EnemyAudioCueLoop());
+        }
+        else
+        {
+            if (enemyAudioCueCoroutine != null)
+            {
+                StopCoroutine(enemyAudioCueCoroutine);
+            }
+        }
+        UpdateButtonTexts();
+    }
+
+    IEnumerator EnemyAudioCueLoop()
+    {
+        while (enemyAudioCue)
+        {
+            float distanceToEnemy = Vector3.Distance(player.transform.position, enemy.transform.position);
+
+            if (distanceToEnemy <= 3f)
+            {
+                enemyAudioCueSource.PlayOneShot(beepSound);
+            }
+
+            yield return new WaitForSeconds(10f);
+        }
     }
 
     void UpdateButtonTexts()
@@ -458,18 +547,22 @@ public class AccessibleMenu : MonoBehaviour
         switch (currentDifficulty)
         {
             case DifficultyLevel.Easy:
-                difficultyText.text = "Difficulty: Easy";
+                difficultyText.text = "Difficulty: Novice";
                 break;
             case DifficultyLevel.Medium:
-                difficultyText.text = "Difficulty: Medium";
+                difficultyText.text = "Difficulty: Easy";
                 break;
             case DifficultyLevel.Hard:
+                difficultyText.text = "Difficulty: Medium";
+                break;
+            case DifficultyLevel.UltraHard:
                 difficultyText.text = "Difficulty: Hard";
+
                 break;
         }
         boxingModeText.text = isOffensiveMode ? "Ducking: On" : "Ducking: Off";
-        scoreNarrationText.text = "Score Narration: " + (scoreNarration ? "On" : "Off");
-        enemyAudioCueText.text = "Enemy Audio Cue: " + (enemyAudioCue ? "On" : "Off");
+        scoreNarrationText.text = scoreNarration ? "Score Narration: On" : "Score Narration: Off";
+        enemyAudioCueText.text = enemyAudioCue ? "Enemy Audio Cue: On" : "Enemy Audio Cue: Off";
     }
 
     void ResumeGame()
@@ -478,102 +571,24 @@ public class AccessibleMenu : MonoBehaviour
         Debug.Log("Resuming game...");
     }
 
-    void GetGameStats()
+    public static void SetOffensiveMode(bool mode)
     {
-        currentLTCount = DirectionHelper.GetLeftTriggerPressCount();
-        Debug.Log("Left trigger has been pressed " + currentLTCount + " times.");
-
-        currentRTCount = MoveEnemyInFront.GetRightTriggerPressCount();
-        Debug.Log("Right trigger has been pressed " + currentRTCount + " times.");
-
-        currentDuckCount = EnemyAttackBehavior.GetPlayerDuckCount();
-        Debug.Log("Player has ducked " + currentDuckCount + " times.");
-
-        currentPlayerHitCount = EnemyAttackBehavior.GetPlayerHitCount();
-        Debug.Log("Enemy has hit the player " + currentPlayerHitCount + " times.");
-
-        currentPlayerHeadPunchCount = PlayAudioOnBoxing.GetPlayerHeadPunchCount();
-        Debug.Log("Player has punched the enemy's head " + currentPlayerHeadPunchCount + " times.");
-
-        currentPlayerBodyPunchCount = PlayAudioOnBoxing.GetPlayerBodyPunchCount();
-        Debug.Log("Player has punched the enemy's body " + currentPlayerBodyPunchCount + " times.");
-
+        isOffensiveMode = mode;
+        if (Instance != null)
+        {
+            Instance.UpdateButtonTexts();
+        }
     }
 
-    void ResetLeftTriggerCount()
+    void GreyOutDifficultyButton()
     {
-        DirectionHelper.ResetTriggerPressCount();
-        MoveEnemyInFront.ResetTriggerPressCount();
+        difficultyButton.interactable = false;
+        ColorBlock colors = difficultyButton.colors;
+        colors.disabledColor = Color.grey;
+        difficultyButton.colors = colors;
     }
 
 }
 
 /*
- * 
- *    private Coroutine currentAudioCoroutine;
-
-    void PlayHoverSound(string buttonID)
-    {
-        SendHapticImpulse(leftController, 0.6f, 0.1f);
-
-        // Stop the current audio coroutine if it's running
-        if (currentAudioCoroutine != null)
-        {
-            StopCoroutine(currentAudioCoroutine);
-        }
-
-        // Start a new audio coroutine
-        currentAudioCoroutine = StartCoroutine(PlayHoverSoundCoroutine(buttonID));
-    }
-
-    IEnumerator PlayHoverSoundCoroutine(string buttonID)
-    {
-        // Stop any currently playing sound
-        audioSource.Stop();
-
-        // Wait for a frame to ensure the audio has stopped
-        yield return null;
-
-        AudioClip clipToPlay = null;
-
-        switch (buttonID)
-        {
-            case "difficulty":
-                Debug.Log("Hovering over difficulty button, : " + isFirstActivation);
-                if (!isFirstActivation)
-                {
-                    switch (currentDifficulty)
-                    {
-                        case DifficultyLevel.Easy:
-                            clipToPlay = difficultyEasyHoverSound;
-                            break;
-                        case DifficultyLevel.Medium:
-                            clipToPlay = difficultyMediumHoverSound;
-                            break;
-                        case DifficultyLevel.Hard:
-                            clipToPlay = difficultyHardHoverSound;
-                            break;
-                    }
-                }
-                break;
-            case "tutorial":
-                clipToPlay = tutorialHoverSound;
-                break;
-            case "boxing":
-                clipToPlay = isOffensiveMode ? boxingOffensiveHoverSound : boxingDefensiveHoverSound;
-                break;
-            default:
-                clipToPlay = hoverSound;
-                break;
-        }
-
-        if (clipToPlay != null)
-        {
-            audioSource.PlayOneShot(clipToPlay);
-            yield return new WaitForSeconds(clipToPlay.length);
-        }
-
-        currentAudioCoroutine = null;
-    }
-
 */
