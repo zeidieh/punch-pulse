@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -118,9 +118,9 @@ public class TutorialManager : MonoBehaviour
         else
         {*/
 
-            currentClip = 0;
+        currentClip = 0;
         StartCoroutine(PlayNextClip());
-        
+
     }
 
     IEnumerator PlayNextClip()
@@ -176,10 +176,10 @@ public class TutorialManager : MonoBehaviour
     bool StepRequiresAudioWait(TutorialStep step, int clipIndex)
     {
         // Define the steps and clips that require waiting for audio
-        
+
         return (step.StepNum == 2 && (clipIndex == 0 || clipIndex == 2 || clipIndex == 5)) || (step.StepNum == 3);
-            //||
-            // (step.StepNum == 5 && clipIndex == 0);
+        //||
+        // (step.StepNum == 5 && clipIndex == 0);
     }
 
     IEnumerator WaitForAudioAndPlayNext(TutorialStep step, int clipIndex)
@@ -204,12 +204,13 @@ public class TutorialManager : MonoBehaviour
         }
         else if (step.StepNum == 3)
         {
-            if (clipIndex == 0) { 
+            if (clipIndex == 0)
+            {
                 TutorialAttackFlag = true;
                 Debug.Log("Enemy attack set , called in clipindex 0");
                 yield return StartCoroutine(enemyAttackBehavior.PerformAttack());
                 TutorialAttackFlag = false;
-                yield return new WaitForSeconds(4);
+                yield return new WaitForSeconds(6);
             }
             else if (clipIndex == 1)
             {
@@ -217,7 +218,7 @@ public class TutorialManager : MonoBehaviour
                 Debug.Log("Enemy attack set , called in clipindex 0");
                 yield return StartCoroutine(enemyAttackBehavior.PerformAttack());
                 TutorialAttackFlag = false;
-                yield return new WaitForSeconds(5);
+                yield return new WaitForSeconds(6);
             }
         }
         Debug.Log("Waiting for audio to finish");
@@ -300,4 +301,3 @@ public class TutorialManager : MonoBehaviour
     }
 
 }
-
