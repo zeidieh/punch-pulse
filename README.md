@@ -125,8 +125,8 @@ Assets/
 1. **Clone Repository**
 
 ```bash
-git clone https://github.com/username/a11y_vr_boxing_game.git
-cd a11y_vr_boxing_game
+git clone https://github.com/xability/punch-pulse.git
+cd punch-pulse
 ```
 
 2. **Unity Project Setup**
