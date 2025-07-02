@@ -262,7 +262,7 @@ Build > Generate standalone application
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT License
 
 This project encourages adaptation and extension for accessibility research and inclusive VR development.
 
