@@ -1,82 +1,277 @@
-# 🥊 A11y VR Boxing Game
+# PunchPulse Accessible VR Boxing Game
 
-An accessible VR boxing game designed for blind and low vision users. Built with Unity, OpenXR and deployed on Meta Quest 2, this project brings together spatial audio, haptic feedback, and adaptive gameplay to promote physical activity in an inclusive way.
+A cross-platform accessible virtual reality boxing application designed to provide inclusive physical activity experiences for blind and low vision users. This project implements a research-informed approach to VR accessibility, leveraging spatial audio, haptic feedback systems, and adaptive interaction paradigms.
 
-Developed by the xAbility Design Lab at the University of Illinois Urbana-Champaign.
+**Developed by:** xAbility Design Lab, University of Illinois Urbana-Champaign
 
----
+## Abstract
 
-## 🎮 Features
+This repository contains the complete implementation of an accessible VR boxing game that eliminates visual dependencies through systematic application of non-visual interaction modalities. The system architecture emphasizes modular design patterns, allowing for extensible accessibility features and cross-platform deployment across OpenXR-compatible VR devices.
 
-- 🔊 **Spatial Audio**: Provides directional cues to locate the opponent and respond to punches.
-- 🤝 **Haptic Feedback**: Responsive vibrations for blocking, punching, and impacts.
-- 🧩 **Adjustable Difficulty**: Modes that alter enemy movement, timing, and player cues.
-- 🦯 **Designed for Accessibility**: Built with screenless play in mind—no visuals required to play effectively.
-- 🧠 **Tutorial Mode**: Guided onboarding with clear instructions and audio narration.
+## Technical Overview
 
----
+### Core Technologies
 
-## 🛠️ Built With
+- **Unity Engine**: 2022.3 LTS with Universal Render Pipeline
+- **XR Framework**: OpenXR 1.0+ with provider-agnostic implementation
+- **Audio Engine**: Unity's 3D Audio system with custom spatial processing
+- **Haptic System**: Native XR controller haptics with extensible feedback patterns
+- **Build Targets**: Meta Quest 2/3, PC VR (SteamVR), Android VR
 
-- Unity 2022.3+
-- OpenXR Plugin
-- Oculus XR Integration
-- TextMeshPro
+### System Requirements
 
----
+#### Development Environment
 
-## 🚀 Getting Started
-
-### Prerequisites
-
-- [Unity Hub](https://unity.com/download)
-- Unity Editor 2022.3 LTS or newer
-- Oculus app (if testing with a Quest headset)
-- OpenXR Plugin (enabled in Unity)
-- Meta Quest 2 VR Headset
-
-### Installation
-
-1. Clone the repository:
-   
-```bash
-git clone https://github.com/your-username/a11y_vr_boxing_game.git
+```
+Unity Editor: 2022.3.x LTS or newer
+.NET Framework: 4.8+
+OpenXR Plugin: 1.4.0+
+XR Interaction Toolkit: 2.3.0+
+TextMeshPro: 3.0.6+
 ```
 
-2. Open the project in Unity Hub
-3. Open the project with Unity 2022.3 LTS or newer
-4. Ensure the OpenXR Plugin is installed and enabled
-5. Build and run the project on your Meta Quest 2
+#### Runtime Dependencies
 
-### Usage
+```
+OpenXR Runtime: 1.0+
+Minimum RAM: 4GB
+Storage: 2GB available space
+VR Headset: OpenXR compatible device
+```
 
-1. **Starting the Game**
-   - Launch the game on your Meta Quest 2
-   - Use the tutorial mode to learn the controls
-   - Follow the audio instructions for navigation
+## Project Architecture
 
-2. **Game Controls**
-   - Trigger buttons for punching
-   - Grip buttons for blocking
-   - Thumbstick for menu navigation
-   - A/X button for selection
+### Core Module System
 
-3. **Accessibility Features**
-   - Adjust audio settings in the options menu
-   - Modify difficulty settings to match your skill level
-   - Customize haptic feedback intensity
+The application follows a modular architecture with clear separation of concerns:
 
-## 📝 Contributing
+```
+Assets/Scripts/
+├── AttackLogic/          # Combat mechanics and physics
+├── BackgroundAudio/      # Ambient audio and spatial soundscapes
+├── Gameplay/            # Game state management and progression
+├── Menu/                # UI accessibility and navigation
+├── PlayerCues/          # Non-visual feedback systems
+└── Tutorial/            # Guided onboarding sequences
+```
 
-We welcome contributions to improve the game's accessibility and features. Please read our [Contributing Guidelines](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
+### Key Components
 
-## 📄 License
+#### 1. Game Module Manager (`GameModuleManager.cs`)
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Singleton pattern implementation managing global game state with three distinct modes:
 
-## 📧 Contact
+- **LevelProgression**: Adaptive difficulty scaling
+- **Manual**: User-controlled parameter adjustment
+- **HardSurvival**: Fixed high-difficulty challenges
 
-For questions or feedback, please open an issue in the GitHub repository or contact the xAbility Design Lab.
+#### 2. Accessibility Systems
+
+**Spatial Audio Engine**
+
+- 3D positional audio with HRTF processing
+- Dynamic range compression for hearing aid compatibility
+- Directional audio cues with configurable intensity
+
+**Haptic Feedback Framework**
+
+- Pattern-based vibration sequences
+- Velocity-sensitive impact feedback
+- Contextual haptic notifications
+
+**Non-Visual Navigation**
+
+- Audio-first menu systems
+- Spatial UI with consistent positioning
+- Voice-guided interactions
+
+#### 3. Combat System
+
+**Physics-Based Interaction**
+
+- Velocity estimation for punch detection (`VelocityEstimator.cs`)
+- Collision-based impact calculation
+- Realistic boxing mechanics with accessibility adaptations
+
+**Enemy AI System**
+
+- Predictable attack patterns for accessibility
+- Audio-telegraphed movements
+- Adjustable reaction times
+
+### Scene Architecture
+
+#### Primary Scenes
+
+- `BoxingRing.unity`: Main gameplay environment
+- `TutorialScene.unity`: Onboarding and training module
+
+#### Asset Organization
+
+```
+Assets/
+├── Animations/          # Character and UI animations
+├── Materials/           # PBR materials and shaders
+├── Models/             # 3D assets and meshes
+├── Prefabs/            # Reusable game objects
+├── Sounds/             # Audio assets and spatial clips
+└── Settings/           # Configuration profiles
+```
+
+## Development Setup
+
+### Environment Configuration
+
+1. **Clone Repository**
+
+```bash
+git clone https://github.com/username/a11y_vr_boxing_game.git
+cd a11y_vr_boxing_game
+```
+
+2. **Unity Project Setup**
+
+```bash
+# Open Unity Hub
+# Add project from disk
+# Select Unity 2022.3.x LTS
+```
+
+3. **Package Dependencies**
+   Ensure the following packages are installed via Package Manager:
+
+- OpenXR Plugin
+- XR Interaction Toolkit
+- XR Plugin Management
+- TextMeshPro
+
+4. **Build Configuration**
+
+```
+Platform: Android (Meta Quest) or PC (Windows/Linux)
+Rendering: Universal Render Pipeline
+Color Space: Linear
+Graphics API: Vulkan (Android) / DirectX 11 (PC)
+```
+
+### Testing Framework
+
+#### Unit Testing
+
+- Unity Test Framework integration
+- Component-level test coverage
+- Accessibility feature validation
+
+#### VR Testing Protocol
+
+1. **Headset Verification**: Multi-device compatibility testing
+2. **Accessibility Validation**: Screen reader simulation
+3. **Performance Profiling**: Frame rate and latency analysis
+4. **User Experience Testing**: Blind and low vision user feedback
+
+## API Reference
+
+### Core Interfaces
+
+#### IAccessibleComponent
+
+```csharp
+public interface IAccessibleComponent
+{
+    void OnAccessibilityModeChanged(AccessibilityMode mode);
+    string GetAccessibilityDescription();
+    void TriggerAccessibilityFeedback();
+}
+```
+
+#### IDifficultyScalable
+
+```csharp
+public interface IDifficultyScalable
+{
+    void SetDifficultyLevel(float level);
+    float GetCurrentDifficulty();
+    void ResetToDefault();
+}
+```
+
+### Event System
+
+The application implements a centralized event system for loose coupling:
+
+```csharp
+// Combat Events
+public static event System.Action<float> OnPunchLanded;
+public static event System.Action<Vector3> OnEnemyAttack;
+
+// Accessibility Events
+public static event System.Action<string> OnAudioCueTriggered;
+public static event System.Action<HapticPattern> OnHapticFeedback;
+```
+
+## Contributing
+
+We welcome contributions to improve the game's accessibility and features. Please see our [Contributing Guidelines](CONTRIBUTING.md) for detailed information on:
+
+- Development workflow and branch structure
+- Code standards and conventions
+- Pull request process
+- Issue reporting templates
+- Testing requirements
+
+## Deployment
+
+### Build Pipeline
+
+#### Meta Quest Deployment
+
+Those wishing to deploy the game on Meta Quest devices should follow these steps:
+
+- navigate to the Unity Build Settings and configure the project for Android with OpenXR support.
+- ensure the OpenXR Feature Groups include Meta Quest Support.
+  OR
+- run test1.apk on a connected device via Meta Quest developer mode.
+
+```bash
+# Configure build settings
+Unity Build Settings > Android
+XR Plug-in Management > OpenXR
+OpenXR Feature Groups > Meta Quest Support
+
+# Generate APK
+Build and Run > Deploy to connected device
+```
+
+#### PC VR Deployment
+
+```bash
+# Windows build
+Unity Build Settings > PC, Mac & Linux Standalone
+Target Platform: Windows x86_64
+XR Plug-in Management > OpenXR
+
+# Build executable
+Build > Generate standalone application
+```
+
+### Distribution
+
+- **Development Builds**: Internal testing and iteration
+- **Release Builds**: Stable versions for end users
+- **Community Builds**: Open source accessibility demonstrations
+
+## License
+
+MIT License - see [LICENSE](LICENSE) for details.
+
+This project encourages adaptation and extension for accessibility research and inclusive VR development.
+
+## Contact
+
+**Technical Issues**: Create a GitHub issue with detailed reproduction steps
+**General Questions**: Contact xAbility Design Lab  
+**Accessibility Feedback**: accessibility@illinois.edu
 
 ---
 
+_This repository supports inclusive VR development. Contributions from the accessibility community are welcomed and valued._
