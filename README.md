@@ -269,8 +269,10 @@ This project encourages adaptation and extension for accessibility research and 
 ## Contact
 
 **Technical Issues**: Create a GitHub issue with detailed reproduction steps
+
 **General Questions**: Contact xAbility Design Lab  
-**Accessibility Feedback**: accessibility@illinois.edu
+
+**Accessibility Feedback**: xability-lab@illinois.edu
 
 ---
 
